@@ -20,8 +20,8 @@ class User(commands.Cog):
         if message.author == self.client.user:
             return
         
-        # Check if the bot is mentioned in the message
-        if self.client.user in message.mentions:
+        # Check if the message is sent via DM
+        if isinstance(message.channel, nextcord.DMChannel):
             try:
                 # Use OpenAI API to generate a response
                 completion = client.chat.completions.create(
@@ -34,16 +34,37 @@ class User(commands.Cog):
                     ],
                     model="gpt-3.5-turbo",
                 )
+                await message.channel.send(completion.choices[0].message.content)
+            except Exception as e:
+            # Handle any errors
+                await message.channel.send("Something went wrong. Please try again later.")
+                print(f"Error: {e}")
 
-                # Send the response as a DM to the user
-                await message.author.send(completion.choices[0].message.content)
-                # Optionally notify in the channel that the user received a DM
-                await message.reply("I've sent you a DM with the response!")
-            except nextcord.Forbidden:
-                # Handle the case where DMs are blocked by the user
-                await message.reply("I couldn't send you a DM. Please check your privacy settings.")
-        else:
-            return
+        else: 
+            if self.client.user in message.mentions:
+                try:
+                    # Use OpenAI API to generate a response
+                    completion = client.chat.completions.create(
+                        messages=[
+                            {"role": "system", "content": "You are a helpful discord application assistant."},
+                            {
+                                "role": "user",
+                                "content": message.content
+                            }
+                        ],
+                        model="gpt-3.5-turbo",
+                    )
+
+                    # Send the response as a DM to the user
+                    response = "Query: " + message.content + "\n\n" + completion.choices[0].message.content
+                    await message.author.send(response)
+                    # Optionally notify in the channel that the user received a DM
+                    await message.reply("I've sent you a DM with the response!")
+                except nextcord.Forbidden:
+                    # Handle the case where DMs are blocked by the user
+                    await message.reply("I couldn't send you a DM. Please check your privacy settings.")
+            else:
+                return
 
 def setup(client):
     client.add_cog(User(client))
